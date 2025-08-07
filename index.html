@@ -58,6 +58,14 @@
   .pill{display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223055; font-size:11px; margin-left:6px; color:#cfe5ff}
   .ver{opacity:.7; font-size:11px; text-align:center; margin-top:4px;}
 </style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crystal Clash">
+<meta name="mobile-web-app-capable" content="yes">
+
 </head>
 <body>
 <div class="game">
@@ -389,6 +397,14 @@ function init(){
 }
 
 init();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+  });
+}
 </script>
 </body>
 </html>
