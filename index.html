@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crystal Clash — FF-Style Mini Game</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a33; --accent:#78c0ff; --accent2:#ffd06e; --hp:#ff4d6d; --mp:#6ea8ff; --good:#91ff9c;
+  }
+  *{box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";}
+  html,body{margin:0; height:100%; background:linear-gradient(180deg,#0b1020 0%,#0a0f1e 60%, #0b1020 100%); color:#e9f1ff;}
+  .game{max-width: 720px; margin:0 auto; padding:12px;}
+  .title{display:flex; align-items:center; gap:8px; justify-content:center; margin:8px 0 4px 0;}
+  .title h1{font-size:22px; letter-spacing:1px; margin:0; text-shadow:0 2px 8px rgba(120,192,255,.4);}
+  .screen{border:2px solid #243053; border-radius:10px; background:radial-gradient(ellipse at top, #14244a 0%, #101830 60%); overflow:hidden;}
+  .arena{position:relative; height:280px; border-bottom:2px solid #243053; background:
+    radial-gradient(ellipse at 50% 0%, rgba(120,192,255,.25), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.2)),
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width=\"40\" height=\"40\" viewBox=\"0 0 40 40\"><path d=\"M0 20h40 M20 0v40\" stroke=\"%231e2a51\" stroke-width=\"1\"/></svg>');
+    }
+  .sprite{position:absolute; transition: transform .25s ease, opacity .25s ease;}
+  .player{left:18%; bottom:28%;}
+  .enemy{right:16%; bottom:34%;}
+  .char{font-size:56px; filter: drop-shadow(0 3px 0 rgba(0,0,0,.3)) drop-shadow(0 10px 12px rgba(0,0,0,.4));}
+  .hit{animation:hit .25s ease;}
+  @keyframes hit{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+  .shake{animation:shake .2s 2;}
+  @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+  .fade{opacity:.35; filter:grayscale(.4)}
+  .bars{display:flex; gap:8px; padding:8px; background:#0f1731; border-bottom:2px solid #243053;}
+  .card{flex:1; background:#0e1833; border:1px solid #223055; border-radius:8px; padding:8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);}
+  .name{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#cfe5ff; margin-bottom:6px;}
+  .bar{height:10px; background:#0a122a; border:1px solid #223055; border-radius:999px; overflow:hidden; position:relative; margin-bottom:6px;}
+  .bar > i{display:block; height:100%; background:linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,0));}
+  .hp i{background:linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,0)), linear-gradient(90deg, var(--hp), #ff8fab);}
+  .mp i{background:linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,0)), linear-gradient(90deg, var(--mp), #a4c8ff);}
+  .limit i{background:linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,0)), linear-gradient(90deg, var(--accent2), #ffe9a6);}
+  .mini{font-size:12px; opacity:.9}
+  .panel{display:flex; gap:8px; padding:8px; background:#0f1731;}
+  .actions{flex:1; display:grid; grid-template-columns: repeat(2, 1fr); gap:8px;}
+  button{appearance:none; border:1px solid #26365f; background:#122149; color:#d6e6ff; padding:10px; border-radius:8px; font-weight:600; font-size:14px; letter-spacing:.3px;
+    box-shadow:inset 0 -8px 12px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.06);}
+  button:disabled{opacity:.5; filter:saturate(.6);}
+  button.primary{border-color:#2c4f88; background:linear-gradient(180deg,#153064, #11264f);}
+  .log{height:96px; background:#0d1730; border:1px solid #223055; border-radius:8px; padding:8px; overflow:auto; font-size:13px;}
+  .row{display:flex; gap:8px;}
+  .col{flex:1; display:flex; flex-direction:column; gap:8px;}
+  .toast{position:absolute; left:50%; transform:translateX(-50%); bottom:12px; background:#0f1731; border:1px solid #223055; padding:6px 10px; border-radius:999px; font-size:12px; opacity:.9}
+  .selector{position:absolute; inset:0; background:rgba(4,6,12,.6); display:flex; align-items:center; justify-content:center;}
+  .modal{background:#0f1731; width:min(480px, 92vw); border:1px solid #223055; border-radius:10px; padding:14px; box-shadow:0 8px 40px rgba(0,0,0,.6)}
+  .modal h2{margin:0 0 8px 0; font-size:18px;}
+  .jobs{display:grid; grid-template-columns: repeat(2,1fr); gap:8px;}
+  .job{padding:10px; border:1px solid #223055; background:#0e1833; border-radius:8px; cursor:pointer}
+  .job.active{outline:2px solid var(--accent);}
+  .small{font-size:12px; color:#c9dcff; opacity:.9}
+  .footer{margin-top:6px; display:flex; justify-content:flex-end; gap:8px;}
+  .pill{display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #223055; font-size:11px; margin-left:6px; color:#cfe5ff}
+  .ver{opacity:.7; font-size:11px; text-align:center; margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="title">
+    <h1>⚔️ Crystal Clash</h1>
+    <span class="pill">FF-like</span>
+    <span class="pill">Turn-Based</span>
+  </div>
+  <div class="screen">
+    <div class="arena" id="arena">
+      <div class="sprite player"><div class="char" id="playerChar">🧝‍♂️</div></div>
+      <div class="sprite enemy"><div class="char" id="enemyChar">👹</div></div>
+      <div class="toast" id="toast" style="display:none">Player Turn</div>
+    </div>
+    <div class="bars">
+      <div class="card">
+        <div class="name">
+          <strong id="pName">Lyra</strong>
+          <span class="mini" id="pJob">Summoner</span>
+        </div>
+        <div class="bar hp"><i id="pHP" style="width:100%"></i></div>
+        <div class="bar mp"><i id="pMP" style="width:100%"></i></div>
+        <div class="bar limit"><i id="pLimit" style="width:0%"></i></div>
+        <div class="mini"><span id="pHPText"></span> | <span id="pMPText"></span> | Limit <span id="pLimitText"></span></div>
+      </div>
+      <div class="card">
+        <div class="name">
+          <strong id="eName">Ifrit Alpha</strong>
+          <span class="mini">Lv 5</span>
+        </div>
+        <div class="bar hp"><i id="eHP" style="width:100%"></i></div>
+        <div class="bar mp"><i id="eMP" style="width:100%"></i></div>
+        <div class="mini"><span id="eHPText"></span> | <span id="eMPText"></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="col">
+        <div class="actions">
+          <button class="primary" id="btnAttack">Attack</button>
+          <button id="btnSkill">Skill</button>
+          <button id="btnMagic">Magic</button>
+          <button id="btnDefend">Defend</button>
+          <button id="btnItem">Item</button>
+          <button id="btnSummon">Summon</button>
+          <button id="btnLimit" disabled>Limit</button>
+          <button id="btnRun">Run</button>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+  <div class="ver">v1.0 — Works offline as a single HTML file. Tip: Add to Home Screen on mobile.</div>
+</div>
+
+<div class="selector" id="selector">
+  <div class="modal">
+    <h2>Choose your Job</h2>
+    <div class="jobs" id="jobs"></div>
+    <div class="footer">
+      <button id="startBtn" class="primary" disabled>Start Battle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Simple FF-like battle system ---
+const JOBS = {
+  'Warrior':   {emoji:'🗡️', base:{ATK:9,MAG:3,DEF:6,RES:4,SPD:4,HP:120,MP:20}, skill:{name:'Blade Storm', cost:6, fn:p=> dmg(calc(1.6,'phys')), tip:'Strong physical attack'}, limit:{name:'Omnistrike', fn:p=>dmg(calc(2.5,'phys'))}},
+  'Black Mage':{emoji:'🧙‍♂️', base:{ATK:3,MAG:10,DEF:3,RES:6,SPD:5,HP:80,MP:60}, skill:{name:'Fira', cost:10, fn:p=> dmg(calc(1.8,'mag','fire'), null,'🔥 Fira!')}, limit:{name:'Meteor', fn:p=>dmg(calc(3.0,'mag'), null,'☄️ Meteor!')}},
+  'White Mage':{emoji:'🧙‍♀️', base:{ATK:4,MAG:7,DEF:4,RES:9,SPD:4,HP:90,MP:70}, skill:{name:'Cura', cost:10, fn:p=> heal(35,'✨ Cura!')}, limit:{name:'Holy', fn:p=>dmg(calc(2.2,'mag'), null,'✝️ Holy!')}},
+  'Dragoon':   {emoji:'🐲', base:{ATK:8,MAG:3,DEF:5,RES:5,SPD:7,HP:110,MP:25}, skill:{name:'Jump', cost:6, fn:p=> dmg(calc(1.7,'phys',null,true), null,'🪂 Jump!')}, limit:{name:'Dragon’s Fury', fn:p=>dmg(calc(2.3,'phys'))}},
+  'Thief':     {emoji:'🗝️', base:{ATK:6,MAG:4,DEF:4,RES:4,SPD:9,HP:95,MP:30}, skill:{name:'Shadow Flurry', cost:8, fn:p=> dmg(calc(1.5,'phys')+rand(3,8), null,'🌪️ Flurry!')}, limit:{name:'Mirage Blitz', fn:p=>dmg(calc(2.0,'phys')+rand(5,12))}},
+  'Summoner':  {emoji:'🧝‍♂️', base:{ATK:4,MAG:8,DEF:4,RES:6,SPD:5,HP:100,MP:60}, skill:{name:'Aether Boost', cost:8, fn:p=> {heal(20,'💎 Aether Boost'); p.limit = Math.min(100, p.limit+25); log('Limit +25%');}}, limit:{name:'Grand Summon', fn:p=> summon('Bahamut')}}
+};
+
+const SUMMONS = {
+  'Ifrit': {mp:20, text:'🔥 Hellfire!', mult:2.0, elem:'fire'},
+  'Shiva': {mp:20, text:'❄️ Diamond Dust!', mult:2.0, elem:'ice'},
+  'Bahamut': {mp:30, text:'🐉 Megaflare!!!', mult:2.8, elem:null},
+};
+
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+
+const player = {
+  name:'Lyra', job:'Summoner', ...JOBS['Summoner'].base, hp:0, mp:0, limit:0, defending:false
+};
+player.hp = player.HP; player.mp = player.MP;
+
+const enemy = {
+  name:'Ifrit Alpha', ATK:8, MAG:9, DEF:6, RES:6, SPD:4, HP:160, MP:40, hp:160, mp:40, elem:'fire'
+};
+
+const logEl = document.getElementById('log');
+function log(t){ logEl.innerHTML += `<div>${t}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+
+function toast(t){ const el = document.getElementById('toast'); el.textContent = t; el.style.display='block'; setTimeout(()=>el.style.display='none', 900); }
+
+function updateBars(){
+  const pHP = document.getElementById('pHP'); const pMP = document.getElementById('pMP'); const pLimit = document.getElementById('pLimit');
+  const eHP = document.getElementById('eHP'); const eMP = document.getElementById('eMP');
+  pHP.style.width = Math.max(0, player.hp/player.HP*100) + '%';
+  pMP.style.width = Math.max(0, player.mp/player.MP*100) + '%';
+  pLimit.style.width = player.limit + '%';
+  eHP.style.width = Math.max(0, enemy.hp/enemy.HP*100) + '%';
+  eMP.style.width = Math.max(0, enemy.mp/enemy.MP*100) + '%';
+  document.getElementById('pHPText').textContent = `HP ${player.hp}/${player.HP}`;
+  document.getElementById('pMPText').textContent = `MP ${player.mp}/${player.MP}`;
+  document.getElementById('pLimitText').textContent = `${player.limit}%`;
+  document.getElementById('eHPText').textContent = `HP ${enemy.hp}/${enemy.HP}`;
+  document.getElementById('eMPText').textContent = `MP ${enemy.mp}/${enemy.MP}`;
+  document.getElementById('btnLimit').disabled = player.limit < 100;
+  document.getElementById('btnSummon').disabled = player.job!=='Summoner';
+}
+function setJob(job){
+  player.job = job; Object.assign(player, JOBS[job].base);
+  player.hp = player.HP; player.mp = player.MP; player.limit = 0;
+  document.getElementById('pName').textContent = player.name;
+  document.getElementById('pJob').textContent = job;
+  document.getElementById('playerChar').textContent = JOBS[job].emoji;
+  updateBars();
+}
+
+function calc(mult, type, elem=null, pierce=false){
+  const base = type==='phys' ? player.ATK*2 : player.MAG*2;
+  let def = type==='phys' ? enemy.DEF : enemy.RES;
+  if(pierce) def = Math.floor(def*0.4);
+  let v = Math.max(1, Math.floor((base - def) * mult) + rand(2,8));
+  // Elemental weaknesses/resistances
+  if(elem && enemy.elem){
+    if((elem==='ice' && enemy.elem==='fire') || (elem==='fire' && enemy.elem==='ice')){
+      v = Math.floor(v*1.4); log('Weakness hit!');
+    }
+  }
+  return v;
+}
+function dmg(amount, target='enemy', text=null){
+  if(text) log(text);
+  if(target==='enemy'){
+    enemy.hp = Math.max(0, enemy.hp - amount);
+    shake('enemyChar');
+    log(`You dealt <b style="color:var(--accent2)">${amount}</b> dmg.`);
+    player.limit = Math.min(100, player.limit + 10);
+  } else {
+    player.hp = Math.max(0, player.hp - amount);
+    shake('playerChar');
+    log(`<span style="color:#ff8fa3">You took <b>${amount}</b> dmg.</span>`);
+    player.limit = Math.min(100, player.limit + Math.ceil((amount/player.HP)*100*0.6)+5);
+  }
+  updateBars();
+  checkEnd();
+}
+function heal(amount, text=''){
+  if(text) log(text);
+  const before = player.hp;
+  player.hp = Math.min(player.HP, player.hp + amount);
+  log(`<span style="color:var(--good)">Healed ${player.hp-before} HP.</span>`);
+  updateBars();
+}
+function shake(id){
+  const n = document.getElementById(id);
+  n.classList.remove('shake'); void n.offsetWidth; n.classList.add('shake');
+}
+function flash(id){
+  const n = document.getElementById(id);
+  n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
+}
+
+function disableAll(state){
+  for(const id of ['btnAttack','btnSkill','btnMagic','btnDefend','btnItem','btnSummon','btnLimit','btnRun']){
+    document.getElementById(id).disabled = state || (id==='btnSummon' && player.job!=='Summoner');
+  }
+}
+
+function enemyTurn(){
+  disableAll(true);
+  setTimeout(()=>{
+    if(enemy.hp<=0) return;
+    let action = Math.random();
+    if(action<0.6){
+      const a = Math.max(1, enemy.ATK*2 - player.DEF + rand(1,6));
+      dmg(a, 'player', '🔥 Ifrit claws at you!');
+    } else if(enemy.mp>=8){
+      enemy.mp -= 8;
+      const a = Math.max(1, Math.floor((enemy.MAG*2 - player.RES)*1.4)+rand(2,6));
+      dmg(a, 'player', '🔥 Ifrit casts Fire!');
+    } else {
+      const a = Math.max(1, enemy.ATK*2 - player.DEF + rand(1,6));
+      dmg(a, 'player', 'Ifrit strikes!');
+    }
+    updateBars();
+    if(player.hp>0){ toast('Player Turn'); disableAll(false); }
+  }, 700);
+}
+
+function checkEnd(){
+  if(enemy.hp<=0){
+    disableAll(true);
+    log('<b style="color:var(--good)">Victory! You gained 120 Gil and a Potion.</b>');
+    document.getElementById('enemyChar').classList.add('fade');
+  } else if(player.hp<=0){
+    disableAll(true);
+    log('<b style="color:#ff8fa3">Defeat... Try a different job or strategy.</b>');
+    document.getElementById('playerChar').classList.add('fade');
+  }
+}
+
+function doPlayerAttack(){
+  const a = Math.max(1, player.ATK*2 - enemy.DEF + rand(1,6));
+  flash('playerChar');
+  setTimeout(()=>{
+    dmg(a);
+    if(enemy.hp>0) enemyTurn();
+  }, 200);
+}
+
+function doSkill(){
+  const sk = JOBS[player.job].skill;
+  if(player.mp < sk.cost){ log('Not enough MP!'); return; }
+  player.mp -= sk.cost; updateBars();
+  flash('playerChar');
+  setTimeout(()=>{
+    sk.fn(player);
+    if(enemy.hp>0) enemyTurn();
+  },200);
+}
+
+function doMagic(){
+  // simple picker between Fire, Blizzard, Thunder, Cure
+  const options = [
+    {name:'Fire', cost:8, fn:()=>dmg(calc(1.4,'mag','fire'), null, '🔥 Fire!')},
+    {name:'Blizzard', cost:8, fn:()=>dmg(calc(1.4,'mag','ice'), null, '❄️ Blizzard!')},
+    {name:'Thunder', cost:9, fn:()=>dmg(calc(1.6,'mag',null), null, '⚡ Thunder!')},
+    {name:'Cure', cost:8, fn:()=>heal(28,'✨ Cure!')},
+  ];
+  pick('Magic', options, (opt)=>{
+    if(player.mp<opt.cost){ log('Not enough MP!'); return; }
+    player.mp -= opt.cost; updateBars(); flash('playerChar');
+    setTimeout(()=>{ opt.fn(); if(enemy.hp>0) enemyTurn(); }, 200);
+  });
+}
+
+function summon(which){
+  const s = SUMMONS[which];
+  if(player.mp < s.mp){ log('Not enough MP!'); return; }
+  player.mp -= s.mp; updateBars();
+  flash('playerChar');
+  setTimeout(()=>{
+    dmg(calc(s.mult, 'mag', s.elem), null, s.text);
+    if(enemy.hp>0) enemyTurn();
+  }, 200);
+}
+function doSummon(){
+  const opts = Object.keys(SUMMONS).map(k=>({name:k, cost:SUMMONS[k].mp, fn:()=>summon(k)}));
+  pick('Summon', opts, (opt)=>opt.fn());
+}
+
+function doLimit(){
+  player.limit = 0; updateBars();
+  flash('playerChar');
+  setTimeout(()=>{
+    JOBS[player.job].limit.fn(player);
+    if(enemy.hp>0) enemyTurn();
+  }, 200);
+}
+
+function doItem(){
+  const options=[
+    {name:'Potion (+50 HP)', fn:()=>{heal(50,'🧪 Potion');}},
+    {name:'Ether (+20 MP)', fn:()=>{player.mp=Math.min(player.MP, player.mp+20); log('🧪 Ether restored 20 MP.'); updateBars();}},
+  ];
+  pick('Item', options, (opt)=>{ opt.fn(); if(enemy.hp>0) enemyTurn(); });
+}
+
+function doDefend(){
+  player.defending = true; log('You brace for impact (DEF/RES up).');
+  player.DEF += 3; player.RES += 3;
+  setTimeout(()=>{
+    enemyTurn();
+    setTimeout(()=>{ // revert after enemy turn
+      player.DEF -=3; player.RES -=3; player.defending=false;
+    }, 800);
+  }, 200);
+}
+
+function pick(title, options, cb){
+  const sel = document.createElement('div');
+  sel.className='selector';
+  sel.innerHTML = `<div class="modal"><h2>${title}</h2>
+    <div class="jobs">`+options.map((o,i)=>`<button class="job" data-i="${i}">${o.name}${o.cost?` <span class="pill">MP ${o.cost}</span>`:''}</button>`).join('')+
+    `</div><div class="footer"><button id="cancelPick">Cancel</button></div></div>`;
+  document.body.appendChild(sel);
+  sel.querySelectorAll('.job').forEach(btn=>btn.onclick=()=>{
+    const idx = +btn.dataset.i; cb(options[idx]); document.body.removeChild(sel);
+  });
+  sel.querySelector('#cancelPick').onclick=()=>document.body.removeChild(sel);
+}
+
+function bind(){
+  document.getElementById('btnAttack').onclick=()=>{doPlayerAttack()}
+  document.getElementById('btnSkill').onclick=()=>{doSkill()}
+  document.getElementById('btnMagic').onclick=()=>{doMagic()}
+  document.getElementById('btnDefend').onclick=()=>{doDefend()}
+  document.getElementById('btnItem').onclick=()=>{doItem()}
+  document.getElementById('btnSummon').onclick=()=>{doSummon()}
+  document.getElementById('btnLimit').onclick=()=>{doLimit()}
+  document.getElementById('btnRun').onclick=()=>{log('You can’t escape!'); enemyTurn()}
+}
+
+function setupJobSelector(){
+  const jobsEl = document.getElementById('jobs');
+  jobsEl.innerHTML = Object.keys(JOBS).map(j=>`<div class="job" data-job="${j}"><b>${JOBS[j].emoji} ${j}</b><div class="small">${JOBS[j].skill.name} — ${JOBS[j].skill.tip||'Special skill'}</div></div>`).join('');
+  let picked=null;
+  jobsEl.querySelectorAll('.job').forEach(el=>{
+    el.onclick=()=>{
+      jobsEl.querySelectorAll('.job').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      picked = el.dataset.job;
+      document.getElementById('startBtn').disabled = false;
+    };
+  });
+  document.getElementById('startBtn').onclick=()=>{
+    if(picked){ setJob(picked); document.getElementById('selector').style.display='none'; toast('Player Turn'); }
+  }
+}
+
+function init(){
+  bind(); updateBars(); setupJobSelector();
+  log('An Ifrit alpha appears! Exploit its weakness to ice.'); 
+}
+
+init();
+</script>
+</body>
+</html>
